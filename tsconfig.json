@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "rootDir": "src",
+        "outDir": "./",
+        "strict": true,
+        "removeComments": true,
+        "typeRoots": ["./node_modules/@types"]
+    },
+
+    "exclude": [
+        "node_modules",
+        "lol.ts"
+    ]
+}
