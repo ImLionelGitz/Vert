@@ -12,12 +12,14 @@
   "author": "me",
   "license": "ISC",
   "dependencies": {
-    "typescript": "^5.0.4",
     "@babel/core": "^7.21.8",
-    "@babel/preset-env": "^7.21.5"
+    "@babel/preset-env": "^7.21.5",
+    "eslint": "^8.40.0",
+    "typescript": "^5.0.4"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.0",
+    "@types/eslint": "^8.37.0",
     "@types/node": "^20.1.2"
   }
 }
