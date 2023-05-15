@@ -30,11 +30,12 @@ const eslint = new ESLint();
     }
     
     if (args.length > 2) {
-        const fileToTranspile = path.join(__dirname, args[2])
-        const outputDir = path.join(__dirname, args[3] || './')
+        const fileToTranspile = path.join(process.cwd(), args[2])
+        const outputDir = path.join(process.cwd(), args[3] || './')
     
         if (!fs.existsSync(fileToTranspile)) {
-            throw new Error("File not found!: " + args[2])
+            console.log("File not found!: " + args[2])
+            return
         }
     
         if (cmds.includes('--watch')) {
