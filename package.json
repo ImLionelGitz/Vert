@@ -4,7 +4,7 @@
   "description": "A ts transpiler extension that omits import/export statements",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc && copy *.json \"dist\\\" && if exist \"dist\\tsconfig.json\" del \"dist\\tsconfig.json\""
   },
   "bin": {
     "vert": "/index.js"
