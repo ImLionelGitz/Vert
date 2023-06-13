@@ -1,61 +1,50 @@
-#!/usr/bin/env node
-import * as fs from "fs"
-import * as path from "path"
-import { ESLint } from "eslint"
+import { Command } from "commander";
+import { join } from "path";
+import chalk from "chalk";
+import  clear from 'clear'
+import * as fs from 'fs'
 
-import { TranspileTS, OnExternalCMD } from "./helpers"
-import { startupMessage } from "./messages"
+const program = new Command()
+const successColor = chalk.hex('#42c264')
+const fileColor = chalk.hex('#bec242')
+let write = false
 
-const args = process.argv.filter(arg => !arg.startsWith('--'))
-const cmds = process.argv.filter(cmd => cmd.startsWith('--'))
-const nonFileCmds = ['--help']
+program
+.name('Vert')
+.description('lololol')
+.version('1.0.0')
 
-let Write = false
+program
+.command('watch')
+.argument('<file-name>', 'Name of the file that is about to be observed. (Required)')
+.argument('[file-path]', 'Add a file path to the JS to observe. (Optional)', '/')
+.action((filename, filepath) => {
+    const path = join(process.cwd(), filepath, filename)
+    
+    if (fs.existsSync(path)) {
+        clear()
+        console.log('Watching for changes in ' + fileColor(filename) + '...')
 
-const eslint = new ESLint();
-
-(function(){
-    if (args.length == 2) {
-        if (cmds.length == 0) {
-            console.log(startupMessage)
-            return
-        }
-
-        cmds.forEach(cmd => {
-            if (nonFileCmds.includes(cmd)) {
-                OnExternalCMD(cmd)
+        fs.watch(path, (ev, file) => {
+            if (!write) {
+                write = true
+                return
             }
-            return
+
+            if (ev == 'change') {
+                write = false
+                fs.readFile(file, {encoding: 'utf8'}, (err, data) => {
+                    if (err) throw new Error(err.message)
+            
+                    if (data.includes('require')) {
+                        const filteredText = data.split('\n').filter(lines => !lines.includes('require')).join('\n')
+                        fs.writeFileSync(path, filteredText, {encoding: 'utf8'})
+                        console.log(successColor('Removed the Require() function!'))
+                    }
+                })
+            }
         })
     }
-    
-    if (args.length > 2) {
-        const fileToTranspile = path.join(process.cwd(), args[2])
-        const outputDir = path.join(process.cwd(), args[3] || './')
-    
-        if (!fs.existsSync(fileToTranspile)) {
-            console.log("File not found!: " + args[2])
-            return
-        }
-    
-        if (cmds.includes('--watch')) {
-            fs.watch(fileToTranspile, (ev, fileName) => {
-                if (!Write) {
-                    Write = true
-                    return
-                }
+})
 
-                if (ev == "change") {
-                    Write = false
-                    TranspileTS(fileToTranspile, outputDir, args, cmds, eslint)
-                }
-            })
-        }
-        else {
-            TranspileTS(fileToTranspile, outputDir, args, cmds, eslint)
-        }
-        
-        return
-    }
-})()
-
+program.parse()
