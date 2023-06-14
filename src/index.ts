@@ -9,7 +9,7 @@ import * as fs from 'fs'
 const program = new Command()
 const successColor = chalk.hex('#42c264')
 const fileColor = chalk.hex('#bec242')
-const regex = /require\W\D+/gmi
+const regex = /(import\s*{\s*[\w.-]+\s*}\s*from\s*(['"])([\w.-]+)\2|require\((['"])([\w.-]+)\4\))/gmi
 let write = false
 
 program
@@ -29,7 +29,7 @@ program
         clear()
         console.log('Watching for changes in ' + fileColor(filename) + '...')
 
-        fs.watch(path, (ev, file) => {
+        const watcher = fs.watch(path, (ev) => {
             if (!write) {
                 write = true
                 return
@@ -37,8 +37,12 @@ program
 
             if (ev == 'change') {
                 write = false
-                fs.readFile(file, {encoding: 'utf8'}, (err, data) => {
-                    if (err) throw new Error(err.message)
+                fs.readFile(path, {encoding: 'utf8'}, (err, data) => {
+                    if (err) {
+                        console.log(chalk.red(err.message))
+                        watcher.close()
+                        return
+                    }
             
                     if (data.match(regex)) {
                         const filteredText = data.split('\n').filter(lines => !lines.match(regex)).join('\n')
