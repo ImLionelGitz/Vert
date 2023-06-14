@@ -12,12 +12,15 @@
   "author": "me",
   "license": "ISC",
   "dependencies": {
+    "@babel/generator": "^7.22.5",
+    "@babel/parser": "^7.22.5",
+    "@babel/traverse": "^7.22.5",
     "chalk": "^4.1.2",
-    "clear": "^0.1.0",
     "commander": "^10.0.1"
   },
   "devDependencies": {
-    "@types/clear": "^0.1.2",
+    "@types/babel__generator": "^7.6.4",
+    "@types/babel__traverse": "^7.20.1",
     "@types/node": "^20.1.2"
   }
 }

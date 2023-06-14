@@ -7,7 +7,6 @@
         "outDir": "./dist",
         "strict": true,
         "removeComments": true,
-        "esModuleInterop": true,
         "typeRoots": ["./node_modules/@types"]
     },
 

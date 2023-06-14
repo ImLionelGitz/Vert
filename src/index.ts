@@ -2,9 +2,11 @@
 
 import { Command } from "commander";
 import { join } from "path";
-import chalk from "chalk";
-import  clear from 'clear'
+import * as parser from '@babel/parser'
+import * as chalk from "chalk";
 import * as fs from 'fs'
+import traverse from '@babel/traverse'
+import generate from '@babel/generator'
 
 const program = new Command()
 const successColor = chalk.hex('#42c264')
@@ -14,7 +16,7 @@ let write = false
 
 program
 .name('Vert')
-.description(`A tool that removes the function ${fileColor('Require()')} automatically.`)
+.description(`A tool that removes ${fileColor('module import statements')} automatically.`)
 .version('1.0.1')
 
 program
@@ -26,17 +28,14 @@ program
     const path = join(process.cwd(), filepath, filename)
     
     if (fs.existsSync(path)) {
-        clear()
+        console.clear()
+        
         console.log('Watching for changes in ' + fileColor(filename) + '...')
 
         const watcher = fs.watch(path, (ev) => {
-            if (!write) {
+            if (ev == 'change' && !write) {
                 write = true
-                return
-            }
 
-            if (ev == 'change') {
-                write = false
                 fs.readFile(path, {encoding: 'utf8'}, (err, data) => {
                     if (err) {
                         console.log(chalk.red(err.message))
@@ -44,11 +43,40 @@ program
                         return
                     }
             
-                    if (data.match(regex)) {
-                        const filteredText = data.split('\n').filter(lines => !lines.match(regex)).join('\n')
-                        fs.writeFileSync(path, filteredText, {encoding: 'utf8'})
-                        console.log(successColor('Removed the Require() function!'))
-                    }
+                    const filteredText = data.split('\n').filter(lines => !lines.match(regex)).join('\n')
+
+                    const ast = parser.parse(filteredText, {
+                        sourceType: 'module'
+                    })
+
+                    traverse(ast, {
+                        ImportDeclaration(path) {
+                            path.remove()
+                        },
+                        
+                        CallExpression(path) {
+                            const callee = path.node.callee
+
+                            if (
+                                callee.type == 'Identifier' &&
+                                callee.name == 'require' &&
+                                path.node.arguments.length == 1 &&
+                                path.node.arguments[0].type == 'StringLiteral'
+                            ) path.remove()
+                        }
+                    })
+
+                    const transformed = generate(ast).code
+                    fs.writeFile(path, transformed, 'utf8', (err) => {
+                        if (err) {
+                            console.log(chalk.red(err.message))
+                        }
+                        else {
+                            console.log(successColor('Removed module import statements!'))
+                        }
+                        write = false
+                    })
+                    
                 })
             }
         })
