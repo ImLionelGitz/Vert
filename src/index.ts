@@ -13,6 +13,7 @@ const successColor = chalk.hex('#42c264')
 const fileColor = chalk.hex('#bec242')
 const regex = /(import\s*{\s*[\w.-]+\s*}\s*from\s*(['"])([\w.-]+)\2|require\((['"])([\w.-]+)\4\))/gmi
 let write = false
+let errored = false
 
 program
 .name('Vert')
@@ -29,54 +30,81 @@ program
     
     if (fs.existsSync(path)) {
         console.clear()
-        
         console.log('Watching for changes in ' + fileColor(filename) + '...')
 
-        const watcher = fs.watch(path, (ev) => {
+        const watcher = fs.watch(path, (ev) => {0
             if (ev == 'change' && !write) {
                 write = true
 
-                fs.readFile(path, {encoding: 'utf8'}, (err, data) => {
-                    if (err) {
-                        console.log(chalk.red(err.message))
-                        watcher.close()
-                        return
-                    }
-            
-                    const filteredText = data.split('\n').filter(lines => !lines.match(regex)).join('\n')
+                let ProcessedCode = ''
 
-                    const ast = parser.parse(filteredText, {
-                        sourceType: 'module'
-                    })
+                const readStream = fs.createReadStream(path, {encoding: 'utf8', highWaterMark: 15 * 1024})
 
-                    traverse(ast, {
-                        ImportDeclaration(path) {
-                            path.remove()
-                        },
+                readStream.on('data', (chunks) => {
+                    if (typeof chunks == 'string') {
+                        const PreProcessed = chunks.split('\n').filter(chunk => !chunk.match(regex)).join('\n')
                         
-                        CallExpression(path) {
-                            const callee = path.node.callee
+                        try {
+                            const ast = parser.parse(PreProcessed, {
+                                sourceType: 'module'
+                            })
+    
+                            traverse(ast, {
+                                ImportDeclaration(path) {
+                                    path.remove()
+                                },
+                                
+                                CallExpression(path) {
+                                    const callee = path.node.callee
+        
+                                    if (
+                                        callee.type == 'Identifier' &&
+                                        callee.name == 'require' &&
+                                        path.node.arguments.length == 1 &&
+                                        path.node.arguments[0].type == 'StringLiteral'
+                                    ) path.remove()
+                                }
+                            })
+    
+                            const generatedCode = generate(ast).code
+                            ProcessedCode = ProcessedCode + generatedCode
+                        }
+                        catch(err: any) {
+                            console.log(chalk.red(`Error: ${err.message}`))
+                            errored = true
+                        }
+                    }
+                })
 
-                            if (
-                                callee.type == 'Identifier' &&
-                                callee.name == 'require' &&
-                                path.node.arguments.length == 1 &&
-                                path.node.arguments[0].type == 'StringLiteral'
-                            ) path.remove()
-                        }
-                    })
+                readStream.on('error', (err) => {
+                    console.log(chalk.red(err.message))
+                    watcher.close()
+                })
 
-                    const transformed = generate(ast).code
-                    fs.writeFile(path, transformed, 'utf8', (err) => {
-                        if (err) {
-                            console.log(chalk.red(err.message))
-                        }
-                        else {
-                            console.log(successColor('Removed module import statements!'))
-                        }
+                readStream.on('end', () => {
+                    if (!errored && ProcessedCode) {
+                        fs.writeFile(path, ProcessedCode, 'utf8', (err) => {
+                            if (err) {
+                                console.log(chalk.red(err.message))
+                                return
+                            }
+
+                            const currentTime = new Date();
+                            const hours = currentTime.getHours().toString().padStart(2, '0');
+                            const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+                            const seconds = currentTime.getSeconds().toString().padStart(2, '0');
+                            const formattedTime = hours + ":" + minutes + ":" + seconds;
+
+                            ProcessedCode = ''
+                            console.log(successColor(`Successfully de-modulated ${filename}! Time: ${formattedTime}`))
+                            write = false
+                        })
+                    }
+                    else {
+                        ProcessedCode = ''
+                        errored = false
                         write = false
-                    })
-                    
+                    }
                 })
             }
         })
